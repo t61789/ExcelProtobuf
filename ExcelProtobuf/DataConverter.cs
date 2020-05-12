@@ -50,37 +50,57 @@ namespace ExcelProtobuf
             }
             ISheet sheet =workbook.GetSheetAt(0);
 
-            Dictionary<string, int> fieldMap = new Dictionary<string, int>();
-            List<ICell> fieldRow = sheet.GetRow(2).Cells;
-            for (int i = 0; i < fieldRow.Count; i++)
-                fieldMap.Add(Program.FirstCharUpper(fieldRow[i].ToString()), i);
+            List<string> fieldMap = new List<string>();
 
-            object newTable = serializerType.GetConstructor(new Type[0]).Invoke(null);
+            dynamic newTable = serializerType.GetConstructor(new Type[0]).Invoke(null);
+            //List<ICell> fieldRow = sheet.GetRow(2).Cells;
+            //for (int i = 0; i < fieldRow.Count; i++)
+            //    fieldMap.Add(Program.FirstCharUpper(fieldRow[i].ToString()), i);
+
+            foreach (var item in sheet.GetRow(2))
+                newTable.Fields.Add(item.ToString());
 
             Type dic = serializerType.GetProperty("Data").PropertyType;
             object diction = serializerType.GetProperty("Data").GetValue(newTable);
-            MethodInfo addMethod = dic.GetMethod("Add",new Type[] { typeof(int), rowType });
+            MethodInfo addMethod = dic.GetMethod("Add",new Type[] { rowType });
 
-            int count = 0;
             foreach (IRow item in sheet)
             {
-                if (count < 3)
-                {
-                    count++;
+                if (item.RowNum < 3)
                     continue;
-                }
+
                 object newRow = rowType.GetConstructor(new Type[0]).Invoke(null);
+
+                int count = 0;
                 foreach (var i in rowType.GetProperties(BindingFlags.Public|BindingFlags.Instance))
                 {
-                    object value = Convert.ChangeType(item.GetCell(fieldMap[i.Name])?.ToString(), i.PropertyType);
-                    if (value == null)
-                        value = Default(i.PropertyType);
+                    object value;
+                    string cellValue = item.GetCell(count)?.ToString();
+                    if (i.PropertyType.IsGenericType)
+                    {
+                        if (cellValue != null)
+                        {
+                            string[] args = cellValue.Split('|');
+                            Type eleType = i.PropertyType.GetGenericArguments()[0];
+                            value = i.GetValue(newRow);
 
-                    i.SetValue(newRow, value);
+                            MethodInfo arrayAddMethod = i.PropertyType.GetMethod("Add", new Type[] { eleType });
+                            foreach (var j in args)
+                                arrayAddMethod.Invoke(value, new object[] { Convert.ChangeType(j, eleType) });
+                        }
+                    }
+                    else
+                    {
+                        value = Convert.ChangeType(cellValue, i.PropertyType);
+                        if (value == null)
+                            value = Default(i.PropertyType);
+                        i.SetValue(newRow, value);
+                    }
+
+                    count++;
                 }
 
-                addMethod.Invoke(diction,new object[] {count-3,newRow });
-                count++;
+                addMethod.Invoke(diction,new object[] { newRow });
             }
 
             workbook.Close();

@@ -23,6 +23,8 @@ namespace ExcelProtobuf
         public string protocPath;
         public string logPath;
 
+        public string debugPath;
+
         public XDocument configDoc;
 
         static Config()
@@ -35,7 +37,8 @@ namespace ExcelProtobuf
                 codeDirectory = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"codes" + Path.DirectorySeparatorChar,
                 protoDllPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"Google.Protobuf.dll",
                 protocPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"protoc-3.8.0-win64" + Path.DirectorySeparatorChar + @"bin" + Path.DirectorySeparatorChar + @"protoc.exe",
-                logPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"log.log"
+                logPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"log.log",
+                debugPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase + @"debug.log",
             };
             instance.LoadConfig();
         }
@@ -314,8 +317,16 @@ namespace ExcelProtobuf
         {
             if (!File.Exists(logPath))
                 File.Create(logPath).Close();
-            string s = string.Format("[{0}] :>{1}", DateTime.Now, e);
+            string s = string.Format("[{0}] :>{1}\n", DateTime.Now, e);
             File.AppendAllText(logPath,s);
+        }
+
+        public void Debugg(string str)
+        {
+            if (!File.Exists(debugPath))
+                File.Create(debugPath).Close();
+            string s = string.Format("[{0}] :>{1}\n", DateTime.Now, str);
+            File.AppendAllText(debugPath, s);
         }
     }
 }

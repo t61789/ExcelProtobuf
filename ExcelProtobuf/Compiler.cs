@@ -15,14 +15,18 @@ namespace ExcelProtobuf
             }
             Directory.CreateDirectory(path);
 
+            int count = 0;
             foreach (var item in Directory.GetFiles(Config.instance.protoDirectory, "*.proto"))
             {
                 Program.Exec(Config.instance.protocPath, string.Format(" --proto_path={0} --csharp_out={1} {2}", Config.instance.protoDirectory, Config.instance.codeDirectory, item));
                 string fileName = Path.GetFileNameWithoutExtension(item);
-                if (!File.Exists(Config.instance.codeDirectory + Program.FirstCharUpper(fileName) + ".cs"))
-                    Program.Log("转换为cs文件失败 {0}", fileName);
-                else
+
+                int temp = Directory.GetFiles(Config.instance.codeDirectory, "*.cs").Length;
+                if (count+1 == temp)
                     Program.Log("转换为cs文件成功 {0}", fileName);
+                else
+                    Program.Log("转换为cs文件失败 {0}", fileName);
+                count = temp;
             }
 
             Compile(groupName);

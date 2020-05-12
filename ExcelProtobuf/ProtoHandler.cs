@@ -14,6 +14,8 @@ namespace ExcelProtobuf
 {
     public class ProtoHandler
     {
+        private const string TYPES = "double float int32 int64 uint32 uint64 sint32 sint64 fixed32 fixed64 sfixed32 sfixed64 bool string bytes";
+
         public void Process(string groupName,bool force)
         {
             Program.Log("***开始生成proto文件***");
@@ -82,7 +84,7 @@ namespace ExcelProtobuf
         {
             var info = Config.instance.GetGroupInfo(groupName);
 
-            var header = "\nsyntax = \"proto3\";\noption csharp_namespace = \"{0}\";\n";
+            var header = "syntax = \"proto3\";\noption csharp_namespace = \"{0}\";\n";
             return string.Format(header, info.namespacee);
         }
 
@@ -91,31 +93,31 @@ namespace ExcelProtobuf
             StringBuilder sb = new StringBuilder("message " + protoName + " {\n");
 
             IRow row2 = sheet.GetRow(1);
-            IRow row3 = sheet.GetRow(2);
 
             int count = 0;
             foreach (var item in row2)
             {
                 string type = row2.GetCell(count).ToString();
-                string name = row3.GetCell(count).ToString();
                 count++;
-                sb.Append(GetVariableString(count,type,name));
+                sb.Append(GetVariableString(count,type));
             }
 
             sb.Append("}");
             return sb.ToString();
         }
 
-        private string GetVariableString(int index,string type, string name)
+        private string GetVariableString(int index,string type)
         {
-            string str = "";
-            if (type.Contains("[]"))
-            {
-                type = "repeated " + type.Split('[')[0];
-            }
-            str += " " + type + " " + name + " = " + index + ";";
-            str += "\n";
-            return str;
+            string s = "{0} {1} D{2} = {2};\n";
+
+            int result = TypeCheck(type);
+            if (result == 0) throw new InvalidCastException("proto类型不正确: "+ type);
+            else if(result == 1)
+                s = string.Format(s, null, type, index);
+            else if(result == 2)
+                s = string.Format(s, "repeated", type.Split('[')[0], index);
+
+            return s;
         }
 
         private string ProcessMap(string protoName)
@@ -123,9 +125,20 @@ namespace ExcelProtobuf
             string str = @"
 message Excel_{0}
 {{
-    map<int32,{1}> {2} = 1;
+    repeated string Fields = 1;
+    repeated {0} Data = 2;
 }}";
-            return string.Format(str, protoName, protoName, "Data");
+            return string.Format(str, protoName);
+        }
+
+        private int TypeCheck(string type)
+        {
+            if (TYPES.Contains(type)) return 1;
+            string[] spli = type.Split('[');
+            if (spli.Length != 2) return 0;
+            if (spli[1] != "]") return 0;
+            if (TYPES.Contains(spli[0])) return 2;
+            return 0;
         }
     }
 }
